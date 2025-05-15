@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>موقع التحقق من الأحاديث</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Style général */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            direction: rtl;
+            text-align: right;
+        }
+
+        header {
+            background-color: #f9f9f9;
+            color: #3ca574;
+            padding: 20px;
+            text-align: center;
+        }
+
+        nav ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 10px 0 0;
+        }
+
+        nav ul li {
+            display: inline-block;
+            margin: 0 10px;
+        }
+
+        nav ul li a {
+            text-decoration: none;
+            color: #3ca574;
+            font-weight: bold;
+        }
+
+        main {
+            padding: 20px;
+            max-width: 900px;
+            margin: auto;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            resize: vertical;
+            font-size: 1em;
+        }
+
+        button {
+            background-color: #2980b9;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        button:hover {
+            background-color: #3498db;
+        }
+
+        .results {
+            background-color: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 30px;
+        }
+
+        .similar-hadith {
+            margin: 15px 0;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+
+        .similar-hadith-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .similar-hadith-meta span {
+            background-color: #eaeaea;
+            padding: 3px 8px;
+            border-radius: 3px;
+        }
+
+        .hadith-text {
+            font-style: italic;
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+
+        footer {
+            background-color: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            margin-top: 40px;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            nav ul li {
+                display: block;
+                margin: 10px 0;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            .similar-hadith-meta {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>التحقق من الأحاديث</h1>
+        <nav>
+            <ul>
+                <li><a href="/">الصفحة الرئيسية</a></li>
+                <li><a href="#">حول</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="verification">
+            <h2>تحقق من الحديث</h2>
+            <form method="POST">
+                <textarea name="hadith_text" placeholder="أدخل نص الحديث هنا" required></textarea>
+                <button type="submit">تحقق</button>
+            </form>
+
+            {% if result %}
+            <div class="results">
+                <h2>نتائج التحقق</h2>
+                {% if result.error %}
+                    <p>{{ result.error }}</p>
+                {% else %}
+                    <h3>الملخص:</h3>
+                    <p>{{ result.summary }}</p>
+
+                    <h3>السياق:</h3>
+                    <p>{{ result.context.inferred_context }}<br>
+                    المشاعر: {{ result.context.sentiment }} (الثقة: {{ result.context.confidence }})<br>
+                    الكلمات المفتاحية: {{ result.context.keywords }}</p>
+
+                    <h3>الكيانات:</h3>
+                    <ul>
+                        <li>الأشخاص: {{ result.entities.persons | join(', ') or 'لا يوجد' }}</li>
+                        <li>الأماكن: {{ result.entities.locations | join(', ') or 'لا يوجد' }}</li>
+                        <li>التواريخ: {{ result.entities.dates | join(', ') or 'لا يوجد' }}</li>
+                        <li>المنظمات: {{ result.entities.organizations | join(', ') or 'لا يوجد' }}</li>
+                    </ul>
+
+                    <h3>الموثوقية:</h3>
+                    <p>{{ result.reliability.reliability_note }}<br>
+                    اتساق التقييم: {{ result.reliability.consistency }}</p>
+
+                    {% if result.reliability.contradictions and result.reliability.contradictions[0] != 'لم يتم اكتشاف تناقضات' %}
+                    <ul>
+                        {% for contradiction in result.reliability.contradictions %}
+                            <li>{{ contradiction }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+
+                    <h3>مقارنة الأحاديث:</h3>
+                    <p>{{ result.hadith_comparison.is_similar }} (أقصى تشابه: {{ result.hadith_comparison.max_similarity }})<br>
+                    {{ result.hadith_comparison.authenticity_note }}</p>
+
+                    {% if result.hadith_comparison.similar_hadiths %}
+                    <h4>الأحاديث المشابهة:</h4>
+                    <div class="similar-hadiths">
+                        {% for hadith in result.hadith_comparison.similar_hadiths %}
+                        <div class="similar-hadith">
+                            <p class="hadith-text">{{ hadith.texte }}</p>
+                            <div class="similar-hadith-meta">
+                                <span>التشابه: {{ hadith.similarité }}</span>
+                                {% if hadith.source %}
+                                <span>المصدر: {{ hadith.source }}</span>
+                                {% endif %}
+                                {% if hadith.hadith_no %}
+                                <span>رقم الحديث: {{ hadith.hadith_no }}</span>
+                                {% endif %}
+                                {% if hadith.hadith_id %}
+                                <span>معرف الحديث: {{ hadith.hadith_id }}</span>
+                                {% endif %}
+                                {% if hadith.chapter %}
+                                <span>الباب: {{ hadith.chapter }}</span>
+                                {% endif %}
+                               {% if result.scientific_analysis %}
+    <h3>🧠 التحليل العلمي للنص:</h3>
+    <ul>
+        <li><strong>التحليل الباليوغرافي:</strong> {{ result.scientific_analysis.paléographie }}</li>
+        <li><strong>التحليل الدبلوماسي:</strong> {{ result.scientific_analysis.diplomatique }}</li>
+        <li><strong>التحليل الكوديكولوجي:</strong> {{ result.scientific_analysis.codicologie }}</li>
+        <li><strong>التحليل الفيلولوجي:</strong> {{ result.scientific_analysis.philologie }}</li>
+        <li><strong>النقد النصي:</strong> {{ result.scientific_analysis.critique_textuelle }}</li>
+        <li><strong>الكرونولوجيا:</strong> {{ result.scientific_analysis.chronologie }}</li>
+        <li><strong>الكتابة التاريخية:</strong> {{ result.scientific_analysis.historiographie }}</li>
+    </ul>
+{% endif %}
+
+
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+            {% endif %}
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 موقع التحقق من الأحاديث</p>
+    </footer>
+</body>
+</html>
+
